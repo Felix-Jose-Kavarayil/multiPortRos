@@ -144,6 +144,11 @@ msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
 
 
+msg.frame_id="rewardedPort_{}".format(rewardedPort)
+msg.stamp=rospy.get_rostime()
+pubTaskEvent.publish(msg)
+
+
 timeout = time.time() + sessionDurationSec ## time at which to stop
 
 
