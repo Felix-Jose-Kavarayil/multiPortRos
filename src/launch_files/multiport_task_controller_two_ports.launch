@@ -1,0 +1,23 @@
+<launch>
+
+<!--
+To make the serial node work, we had to...
+cd ~/catkin_ws/src
+git clone https://github.com/ros-drivers/rosserial.git -b noetic-devel
+cd ..
+catkin_make
+-->
+<node name="serial_node_arduino"
+      type="serial_node.py"
+      pkg="rosserial_python"
+      args="/dev/ttyACM0"
+      output="screen"
+      />
+ 
+<node name="multiport_task_logger"
+      type="multiport_task_logger.py"
+      pkg="multiport_ros"
+      output="screen"
+      />
+
+</launch>

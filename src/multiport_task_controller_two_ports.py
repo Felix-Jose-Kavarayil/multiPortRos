@@ -5,7 +5,9 @@
 # rosrun rosserial_python serial_node.py /dev/ttyACM0
 #
 #
-
+import rostopic
+import roslaunch
+import rospkg
 import rospy
 from time import sleep
 from std_msgs.msg import Int32,Header
@@ -18,7 +20,7 @@ import os
 import random
 import numpy as np
 import getpass
-
+from multiport_common_funct import checkNodesTopicServices
 
 lastRewardTime=time.time()
 lightStatus=0 # flag to know if the light is on or off
@@ -28,7 +30,7 @@ myCmd = {"allLightsOn": int('0000000111111111',2),
         "allLightsOff": int('0000000011111111',2),
         "allReward" :   int('0000001011111111',2)}
 
-rewardedPort = np.random.randint(0,nPorts) # choose a random port to be rewarded
+
 
 
 def rewardCommand(port):
@@ -87,6 +89,9 @@ defaultDatabase="/adata/electro/"
 userName= getpass.getuser()
 localData=os.getenv("HOME") + '/'
 
+rospack = rospkg.RosPack()# get an instance of RosPack with the default search paths
+autopi_rosPackagePath=rospack.get_path('multiport_ros')
+print("multiPortRos path: {}".format(autopi_rosPackagePath))
 
 
 # parse arguments
@@ -100,6 +105,7 @@ parser.add_argument("-r", "--refractoryDuration",help="set the refractory period
 parser.add_argument("-p", "--probeTrialProportion",help="set the proportion of probe trials (from 0 to 1)",type=float, action="store",default = "0.0")
 parser.add_argument("-d","--directory", help="create the direcotry for the data in "+defaultDatabase,action="store_true")
 parser.add_argument("-t","--transfer", help="transfer the data files to the data directory in " + defaultDatabase,action="store_true")
+parser.add_argument("-P", "--rewardedPort",help="set the rewarded port from 0 to 7",type=int, action="store",default = "0")
 
 ## get the time
 now = datetime.datetime.now()
@@ -112,6 +118,7 @@ lightOnDurationSec = args.lightOnDuration
 lightOffDurationSec = args.lightOffDuration
 refractoryDurationSec = args.refractoryDuration
 probeTrialProportion = args.probeTrialProportion
+rewardedPort = args.rewardedPort  #0 #np.random.randint(0,nPorts) # choose a random port to be rewarded
 isProbeTrial = False
 
 
@@ -127,22 +134,61 @@ print("sessionName:",sessionName,"Session duration:",sessionDurationSec,"Light o
 print("file:",fileBase)
 print("rewarded port: {}".format(rewardedPort))
 
+
+
+try:
+    # Checkif rosmaster is running or not.
+    rostopic.get_topic_class('/rosout')
+except rostopic.ROSTopicIOException as e:
+    print("Could not find ros master")
+    print("Is roscore running?")
+    sys.exit()
+
+
+
+
+
+
+###########################
+## run the launch file  ###
+###########################
+uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+roslaunch.configure_logging(uuid)
+taskNameNoPy=task.split(".",1)[0]
+
+# the name of the launch file is "task_master_slave.launch"
+launchFileName=autopi_rosPackagePath+"/src/launch_files/"+ "{}.launch".format(taskNameNoPy)
+print("task name:" + taskNameNoPy)
+print("Launch file name: " + launchFileName)
+launch = roslaunch.parent.ROSLaunchParent(uuid,[launchFileName])
+launch.start()
+rospy.loginfo("launch file started")
+sleep(5) # wait so that all nodes are up and running
+
+
 rospy.init_node('multiport_task')
 
-
 pubCommand = rospy.Publisher('multi_port_control',Int32,queue_size=2)
-pubTaskEvent = rospy.Publisher('task_event',Header,queue_size=1)
+pubTaskEvent = rospy.Publisher('task_event',Header,queue_size=2)
 rospy.Subscriber("multi_port_ir_report", Header, callbackIRBeam)
 
-sleep(5)
 sleep(1) # wait until this node is up and running
 
+
+
+## check that the nodes, topics and services needed are running
+nodeList=["/serial_node_arduino","/multiport_task_logger"]
+topicList=["/multi_port_control","/multi_port_ir_report","/task_event"]
+serviceList=[]
+
+if not checkNodesTopicServices(nodeList,topicList,serviceList):
+  sys.exit()
+print("All nodes and topics are there")
 
 msg=Header()
 msg.frame_id="start"
 msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
-
 
 msg.frame_id="rewardedPort_{}".format(rewardedPort)
 msg.stamp=rospy.get_rostime()

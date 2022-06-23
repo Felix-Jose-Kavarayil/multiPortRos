@@ -73,7 +73,7 @@ def callbackMultiportIRReport(data):
 
     message= data.frame_id.split()[0]
     messagePortNo = int(data.frame_id.split()[1])
-    print(message)
+    #print(message)
     if message == "broken":
         f.write("IRBeamBroken %10d.%09d %s\n" % (data.stamp.secs,
                                                  data.stamp.nsecs,
