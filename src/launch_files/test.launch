@@ -1,0 +1,27 @@
+<launch>
+<machine name="a230-pc89"
+      address="a230-pc89"
+      user="felix"
+      env-loader="~/catkin_ws/src/multiPortRos/devel/master_a230-pc89_env.sh"
+      default="true"
+      />
+<machine name="a230-pc005"
+      address="a230-pc005"
+      user="felix"
+      env-loader="~/catkin_ws/src/multiPortRos/devel/a230-pc005_env.sh"
+      default="false"
+      />
+      
+<node machine="a230-pc89"
+      type="listener"
+      name="listener"
+      pkg="rospy_tutorials"
+      output="screen"
+      />
+<node machine="a230-pc005"
+      type="talker"
+      name="talker"
+      pkg="rospy_tutorials"
+      output="screen"
+      />
+</launch>
