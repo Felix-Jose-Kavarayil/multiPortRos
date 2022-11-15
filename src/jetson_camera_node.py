@@ -85,14 +85,14 @@ class CameraNode:
         camera_topic = rospy.get_param('~camera_topic', '/jetson_cam')
         sensor_id = int(rospy.get_param('~sensor_id', '0'))
         image_width = int(rospy.get_param('~image_width', '640')) # for the webcam, you need width of 640 and height of 480
-        image_height = int(rospy.get_param('~image_height', '480'))
+        image_height = int(rospy.get_param('~image_height', '640'))
         camera_type = rospy.get_param('~camera_type', 'pi')
         captureWidth= int(rospy.get_param('~capture_width', '1920')) #1920
         captureHeight= int(rospy.get_param('~capture_height', '1080')) #1080
-        top=int(rospy.get_param('~crop_top', '50'))
-        bottom=int(rospy.get_param('~crop_bottom', '1030'))
-        left=int(rospy.get_param('~crop_left', '335')) # 258
-        right=int(rospy.get_param('~crop_right', '1310')) # 1662
+        top=int(rospy.get_param('~crop_top', '0'))
+        bottom=int(rospy.get_param('~crop_bottom', '1080'))
+        left=int(rospy.get_param('~crop_left', '420')) # 258
+        right=int(rospy.get_param('~crop_right', '1500')) # 1662
         flipMethod = 1 # vertical flip
 
         fps = int(rospy.get_param('~fps', '30'))
