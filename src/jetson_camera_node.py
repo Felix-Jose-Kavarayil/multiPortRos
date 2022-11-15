@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 from __future__ import print_function
 from __future__ import division
 
@@ -188,7 +188,7 @@ class CameraNode:
             temp[-1] = 'errors'
             self.error_log_path = str.join('.', temp)
             del temp
-            self.timestamp_writer = open(self.timestamps_output_path, "w", 0)
+            self.timestamp_writer = open(self.timestamps_output_path, "w")
             self.timestamp_writer.write("frame_number time\n")
             rospy.loginfo("[{}] Timestamps will be saved in {}".format(self.nodeName,self.timestamps_output_path))
             rospy.loginfo("[{}] Video will be saved in {}".format(self.nodeName,self.video_output_path))
