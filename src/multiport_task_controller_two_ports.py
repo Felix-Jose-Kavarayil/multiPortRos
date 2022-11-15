@@ -29,8 +29,8 @@ nPorts=2
 myCmd = {"allLightsOn": int('0000000111111111',2),
         "allLightsOff": int('0000000011111111',2),
         "allReward" :   int('0000001011111111',2)}
-
-
+        
+#rewardedport = 1 #np.randomranint(o,nports) #choose a random port to be rewarded
 
 
 def rewardCommand(port):
