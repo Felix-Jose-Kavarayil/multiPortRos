@@ -17,24 +17,38 @@ catkin_make
       />
 
 <machine name="a230-pc005"
-      address="172.22.24.91" 
+      address="a230-pc005"
       user="felix"
       env-loader="~/catkin_ws/src/multiPortRos/devel/a230-pc005_env.sh"
       default="false"
       />
 
-
-<node name="serial_node_arduino"
+<node machine="a230-pc89"
+      name="serial_node_arduino"
       type="serial_node.py"
       pkg="rosserial_python"
       args="/dev/ttyACM0"
       output="screen"
       />
  
-<node name="multiport_task_logger"
+<node machine="a230-pc89"
+      name="multiport_task_logger"
       type="multiport_task_logger.py"
       pkg="multiport_ros"
       output="screen"
       />
+
+<node machine="a230-pc005"
+      name="cv_camera_arena_top"
+      pkg="multiport_ros"
+      type="jetson_camera_node.py"
+      output="screen">
+      <param name="sensor_id" value="0" />
+      <param name="image_width" value="480" />
+      <param name="image_height" value="480" />
+      <param name="rate" value="30" />
+      <param name="camera_topic" value="cv_camera_arena_top" />
+      <param name="camera_frame_id" value="cv_camera_arena_top" />
+      </node>
 
 </launch>
