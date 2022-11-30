@@ -44,11 +44,10 @@ catkin_make
       type="jetson_camera_node.py"
       output="screen">
       <param name="sensor_id" value="0" />
-      <param name="image_width" value="480" />
-      <param name="image_height" value="480" />
+      <param name="image_width" value="640" />
+      <param name="image_height" value="640" />
       <param name="rate" value="30" />
       <param name="camera_topic" value="cv_camera_arena_top" />
       <param name="camera_frame_id" value="cv_camera_arena_top" />
       </node>
-
 </launch>
