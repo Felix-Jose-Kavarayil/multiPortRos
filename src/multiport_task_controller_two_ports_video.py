@@ -260,12 +260,16 @@ msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
 
 
+
+launch.shutdown()
+sleep(10)
+
+
 if args.transfer:
     copyDataFilesToDatabase(fileBase,mouseDir,sessionName,
                             master, arenaCameraHost,
                             userName,
                             arenaCamera=True)
 
-
-sleep(1)
+sleep(3)
 rospy.signal_shutdown("task is over")
