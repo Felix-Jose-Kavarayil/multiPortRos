@@ -37,7 +37,7 @@ def decodeCommand(cmd):
             #    print("first selected port {}".format(i))
         port = port >> 1 # shift to the right to check the next port, get rid of the one just checked
         i+=1
-    return commandPart, portPart, firstSelectedPort
+    return commandPart, "{0:08b}".format(portPart), firstSelectedPort
     
 
 
@@ -60,28 +60,30 @@ def callbackMultiportControl(data):
     stamp=rospy.get_rostime()
     if command == 0:
         event = "light"
-        param = "off"
+        param = "off_"+selection
     if command == 1:
         event = "light"
-        param = "on"
+        param = "on_"+selection
     if command == 2:
         event = "reward"
-        param = firstSelectedPort
+        param = selection
     f.write("%s %10d.%09d %s\n" % (event ,stamp.secs, stamp.nsecs, param))
     f.flush()
 def callbackMultiportIRReport(data):
 
     message= data.frame_id.split()[0]
     messagePortNo = int(data.frame_id.split()[1])
+    portNo = 1 << messagePortNo # binary representation with one bit per port   
+    portNo = "{0:08b}".format(portNo)
     #print(message)
     if message == "broken":
         f.write("IRBeamBroken %10d.%09d %s\n" % (data.stamp.secs,
                                                  data.stamp.nsecs,
-                                                messagePortNo))
+                                                 portNo))
     if message == "notBroken":
         f.write("IRBeamNotBroken %10d.%09d %s\n" % (data.stamp.secs,
                                                     data.stamp.nsecs,
-                                                    messagePortNo))
+                                                    portNo))
     f.flush()
 
 

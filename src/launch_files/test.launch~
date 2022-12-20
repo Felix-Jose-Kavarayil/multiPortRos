@@ -1,0 +1,27 @@
+<launch>
+<machine name="a230-pc81"
+      address="a230-pc81"
+      user="kevin"
+      env-loader="~/catkin_ws/src/autopi_ros/devel/master_a230-pc81_env.sh"
+      default="true"
+      />
+<machine name="a230-pc65"
+      address="a230-pc65"
+      user="kevin"
+      env-loader="~/catkin_ws/src/autopi_ros/devel/a230-pc65_env.sh"
+      default="false"
+      />
+      
+<node machine="a230-pc81"
+      type="listener"
+      name="listener"
+      pkg="rospy_tutorials"
+      output="screen"
+      />
+<node machine="a230-pc65"
+      type="talker"
+      name="talker"
+      pkg="rospy_tutorials"
+      output="screen"
+      />
+</launch>
