@@ -24,10 +24,17 @@ catkin_make
       />
 
 <node machine="a230-pc89"
-      name="serial_node_arduino"
+      name="node_beams"
       type="serial_node.py"
       pkg="rosserial_python"
-      args="/dev/ttyACM0"
+      args="/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_8503331313735181F042-if00"
+      output="screen"
+      />
+<node machine="a230-pc89"
+      name="node_arena"
+      type="serial_node.py"
+      pkg="rosserial_python"
+      args="/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_550373130373515021F0-if00"
       output="screen"
       />
  

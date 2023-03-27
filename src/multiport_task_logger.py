@@ -85,12 +85,38 @@ def callbackMultiportIRReport(data):
                                                     data.stamp.nsecs,
                                                     portNo))
     f.flush()
+    
+def callbackArena(data):
+    #data.data[0]
+    a = data.data
+    print("arena rotating:", a)
+    #f.write("arena angle {:.0f}\n".format(a))
+    stamp=rospy.get_rostime()
+    f.write("ArenaRotate %10d.%09d %s\n" % (stamp.secs,
+                                            stamp.nsecs,
+                                            a))
+    f.flush()
+    #print("") ...
+    
+def callbackArenaInfo(data):
+    #data.data[0]
+    a = data.data
+    print("arena info:", a)
+    #f.write("arena angle {:.0f}\n".format(a))
+    stamp=rospy.get_rostime()
+    f.write("ArenaInfo %10d.%09d %s\n" % (stamp.secs,
+                                            stamp.nsecs,
+                                            a))
+    f.flush()
+    #print("") ...
 
 
 rospy.init_node('multiport_logger')
 rospy.Subscriber("multi_port_ir_report", Header, callbackMultiportIRReport)
 rospy.Subscriber("multi_port_control", Int32, callbackMultiportControl)
 rospy.Subscriber("task_event", Header, callbackTaskEvent)
+rospy.Subscriber("arena_control", Int32, callbackArena)
+rospy.Subscriber("arena_info", Int32, callbackArenaInfo)
 pubTaskEvent = rospy.Publisher('task_event',Header,queue_size=1)
 
 

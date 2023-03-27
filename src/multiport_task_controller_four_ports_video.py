@@ -24,6 +24,7 @@ from multiport_common_funct import checkNodesTopicServices,enoughDiskSpace,creat
 
 lastRewardTime=time.time()
 lightStatus=0 # flag to know if the light is on or off
+arenaState=None # state of arena
 
 nPorts=4
 myCmd = {"allLightsOn": int('0000000111111111',2),
@@ -68,6 +69,30 @@ def switchOffLightCommand(port):
     return command+port
     
 
+def start_dark_period():
+    """
+    start the dark period: switch off all lights and set the next light change to the current time + some random time & rotate the arena
+    """
+    rospy.loginfo("start dark period")
+    global lightStatus
+    global nextLightChange
+    pubCommand.publish(myCmd["allLightsOff"])
+    lightStatus=0
+    lightOffDurationSec_random = lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
+    nextLightChange = time.time() + lightOffDurationSec_random
+
+    sleep(2)
+    possible_angles = [0,90,180]
+    angle_to_rotate = np.random.choice(possible_angles)
+    lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
+    rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)
+    pubArenaDuration.publish(lightOffDurationSec_random_round)
+    sleep(0.1)
+    pubArenaControl.publish(angle_to_rotate)
+    sleep(0.1)
+    
+    
+
 def callbackIRBeam(data):
     """
     Deliver water if the beam is broken while the light is on
@@ -82,6 +107,8 @@ def callbackIRBeam(data):
     message= data.frame_id.split()[0]
     messagePortNo = int(data.frame_id.split()[1])
     #print(message,messagePortNo)
+    
+    #start_dark_period = False
 
     # if a port is not in use, don't do anything
     if messagePortNo >= nPorts:
@@ -100,18 +127,30 @@ def callbackIRBeam(data):
 
             # if all ports have been depleated
             if len(rewardPortList) == len(rewardedPorts):
-
-                pubCommand.publish(myCmd["allLightsOff"])
-                lightStatus=0
-                nextLightChange = time.time()+lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
+            	# start_dark_period = True
+            	start_dark_period()
 
 
         if messagePortNo not in rewardedPorts: # the animal poke a wrong port, end this trial there
-            pubCommand.publish(myCmd["allLightsOff"])
-            lightStatus=0
-            nextLightChange = time.time()+lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
+            # start_dark_period = True
+            start_dark_period()
+            
+    #if start_dark_period:
+    #	# start the dark period either because all ports have been depleated or the animal poke a wrong port
+    #	pubCommand.publish(myCmd["allLightsOff"])
+    #	lightStatus=0
+    #	lightOffDurationSec_random = lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
+    #	nextLightChange = time.time() + lightOffDurationSec_random
 
             
+
+def callbackArenaInfo(data):
+	"""
+	callback function to update the current arena state as it is sent by the arena
+	"""
+	#print("debug: arena,",data.data)
+	global arenaState
+	arenaState = data.data
 
 defaultDrive="/ext_drives/d69/data/electro/" ## some drives have /data/electro and other /data/processing
 defaultDatabase="/adata/electro/"
@@ -207,17 +246,27 @@ sleep(5) # wait so that all nodes are up and running
 
 rospy.init_node('multiport_task')
 
+# topics related to multiport ports
 pubCommand = rospy.Publisher('multi_port_control',Int32,queue_size=2)
+# topic for arena related
+pubArenaMode = rospy.Publisher('arena_mode', Int32, queue_size=1)
+pubArenaDuration = rospy.Publisher('arena_duration', Int32, queue_size=1)
+pubArenaControl = rospy.Publisher('arena_control', Int32, queue_size=1)
+# topic for arena feedback
+rospy.Subscriber("arena_info", Int32, callbackArenaInfo)
+# topic for logging
 pubTaskEvent = rospy.Publisher('task_event',Header,queue_size=2)
+# topic for callback on IR break
 rospy.Subscriber("multi_port_ir_report", Header, callbackIRBeam)
+
 
 sleep(1) # wait until this node is up and running
 
 
 
 ## check that the nodes, topics and services needed are running
-nodeList=["/serial_node_arduino","/multiport_task_logger","/cv_camera_arena_top"]
-topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/cv_camera_arena_top/image_raw"]
+nodeList=["/node_beams","/node_arena","/multiport_task_logger","/cv_camera_arena_top"]
+topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/cv_camera_arena_top/image_raw","/arena_control", "/arena_duration", "/arena_mode"]
 serviceList=[]
 
 if not checkNodesTopicServices(nodeList,topicList,serviceList):
@@ -249,6 +298,24 @@ msg.frame_id="rewardedPort_{0:08b}".format(rpInt)
 msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
 
+# zero the arena
+pubArenaMode.publish(0)
+sleep(0.1)
+pubArenaControl.publish(-1)
+print("zeroing...")
+sleep(1)
+
+while True:
+	# wait for arena to be zeroed
+	if arenaState==-1:
+		print("zeroing done")
+		break
+	sleep(0.1)
+
+sleep(2.0)
+pubArenaMode.publish(1)
+print("ready")
+
 
 timeout = time.time() + sessionDurationSec ## time at which to stop
 
@@ -266,9 +333,12 @@ while True:
     # check if it is time to change the light
     if time.time() > nextLightChange:
 
+        rospy.loginfo("light change by time")
         rewardPortList=[]
         
         if lightStatus == 0: # light will turn on
+            rospy.loginfo("light ON")
+            sleep(0.1)
             pubCommand.publish(myCmd["allLightsOn"])
             
             # decide if this is a light trial, get a random number from 0 to 1, compare to our proportion of probe trials
@@ -284,9 +354,9 @@ while True:
             lightStatus=1
             nextLightChange = time.time()+lightOnDurationSec
         else: # light will turn off
-            pubCommand.publish(myCmd["allLightsOff"])
-            lightStatus=0
-            nextLightChange = time.time()+lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
+            rospy.loginfo("light OFF")
+            sleep(0.1)
+            start_dark_period()
     
     sleep(0.1)
     # stop the loop when session is done
