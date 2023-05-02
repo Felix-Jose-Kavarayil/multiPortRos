@@ -11,14 +11,23 @@
       env-loader="~/catkin_ws/src/multiPortRos/devel/a230-pc005_env.sh"
       default="false"
       />
-      
+
+<machine name="a230-pc51"
+      address="a230-pc51"
+      user="felix"
+      env-loader="~/roscvimage_catkinws/src/multiPortRos/devel/a230-pc51_env.sh"
+      default="false"
+      />
+
+
+
 <node machine="a230-pc89"
       type="listener"
       name="listener"
       pkg="rospy_tutorials"
       output="screen"
       />
-<node machine="a230-pc005"
+<node machine="a230-pc51"
       type="talker"
       name="talker"
       pkg="rospy_tutorials"

@@ -22,6 +22,13 @@ catkin_make
       env-loader="~/catkin_ws/src/multiPortRos/devel/a230-pc005_env.sh"
       default="false"
       />
+      
+<machine name="a230-PC51"
+      address="a230-PC51"
+      user="felix"
+      env-loader="~/roscvimage_catkinws/devel/env.sh"
+      default="false"
+      /> 
 
 <node machine="a230-pc89"
       name="node_beams"
@@ -42,6 +49,13 @@ catkin_make
       name="multiport_task_logger"
       type="multiport_task_logger.py"
       pkg="multiport_ros"
+      output="screen"
+      />
+      
+<node machine="a230-PC51"
+      name="monitor_control"
+      type="monitor_control_pyqt.py"
+      pkg="monitor_control"
       output="screen"
       />
 

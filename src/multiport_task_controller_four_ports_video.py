@@ -10,7 +10,7 @@ import roslaunch
 import rospkg
 import rospy
 from time import sleep
-from std_msgs.msg import Int32,Header
+from std_msgs.msg import Int32,Header,String
 import sys
 import time
 import datetime
@@ -19,12 +19,16 @@ import argparse
 import os
 import random
 import numpy as np
+import json
 import getpass
 from multiport_common_funct import checkNodesTopicServices,enoughDiskSpace,createDirectory,copyDataFilesToDatabase
 
 lastRewardTime=time.time()
 lightStatus=0 # flag to know if the light is on or off
 arenaState=None # state of arena
+nRewards=0 # number of reward in the current trial
+nChoices=0 # number of choices in the current trial
+
 
 nPorts=4
 myCmd = {"allLightsOn": int('0000000111111111',2),
@@ -33,6 +37,125 @@ myCmd = {"allLightsOn": int('0000000111111111',2),
         
 #rewardedport = 1 #np.randomranint(o,nports) #choose a random port to be rewarded
 
+
+# dictionary to keep track of performance
+n_trials_history=10
+perfo = {"n_trials_history" : n_trials_history,
+          "mean_reward" : np.nan, # for each trial it gets a 0,1,2 and this is the average over the last x trials
+          "mean_choice" : np.nan,
+          "percentage_correct" : np.nan, # percentage of correct choice
+          "n_trials_done" : 0,
+          "reward_history" : np.empty(n_trials_history),
+          "choice_history" : np.empty(n_trials_history)}
+perfo["reward_history"][:]=np.nan
+perfo["choice_history"][:]=np.nan
+
+def display_images():
+    """
+    Display images listed in the config["window_files"] in the windows
+    """
+    #for i,wf in enumerate(config["window_files"]):
+        #print("{} {}".format(wf,i+1))
+       # pubMonitorControl.publish("{} {}".format(wf,i+1))
+       # sleep(0.5)
+    
+    myString1 = ""
+    for i in config["window_files"]:
+        myString1= myString1+i+","
+    myString1=myString1[:-1]
+    myString1
+    myString2 = ""
+    for i,j in enumerate(config["window_files"]):
+        myString2= myString2+"{}".format(i)+","
+    myString2= myString2[:-1]
+    aCmd = myString1+  " " + myString2
+    print(aCmd)
+    pubMonitorControl.publish(aCmd)
+    
+    
+def shift_image_positions(display_func, read_config_func):
+    """
+    Shift images to the next position and display them using the provided function
+    """ 
+    
+    # Read the config file
+    read_config_func()
+
+    # Get the current order of the images
+    current_order = list(range(len(config["window_files"])))
+
+    # Define the shift pattern
+    shift_patterns = [[3, 0, 1, 2], [2, 3, 0, 1], [1, 2, 3, 0], [0, 1, 2, 3]]
+
+    # Shift the order according to the pattern
+    shifted_order = current_order
+    for shift_pattern in shift_patterns:
+        shifted_order = [shifted_order[i] for i in shift_pattern]
+
+    # Reorder the images based on the shifted order
+    shifted_images = [config["window_files"][i] for i in shifted_order]
+
+    # Update the config with the new image order
+    config["window_files"] = shifted_images
+    
+    '''
+    # Read the config file
+    read_config_func()
+    
+    # Get the current order of the images
+    current_order = list(range(len(config["window_files"])))
+
+    # Define the shift pattern
+    shift_pattern = [3, 0, 1, 2]
+
+    # Shift the order according to the pattern
+    shifted_order = [current_order[shift_pattern[i]] for i in range(len(current_order))]
+
+    # Reorder the images based on the shifted order
+    shifted_images = [config["window_files"][i] for i in shifted_order]
+
+    # Update the config with the new image order
+    config["window_files"] = shifted_images
+    
+    '''
+    
+    '''
+
+    # Get the current order of the images
+    current_order = list(range(len(config["window_files"])))
+
+    # Shift the order by one position
+    shifted_order = [current_order[-1]] + current_order[:-1]
+
+    # Reorder the images based on the shifted order
+    shifted_images = [config["window_files"][i] for i in shifted_order]
+
+    
+    # Add the first image to the end of the list to ensure there are 4 images
+    shifted_images.append(config["window_files"][0])
+    
+
+    # Update the config with the new image order
+    config["window_files"] = shifted_images[:4]
+    
+    '''
+    
+    # Display the images using the provided function
+    #display_func()
+
+def rewardedPorts_to_byteRepresentation(rewardedPorts):
+    """
+    Transform of list of rewarded port (0to7) to a bit representation
+    Arguments
+    rewardedPorts: list of rewarded ports
+    
+    Return bit string
+    """
+    mySum = 0
+    for i in rewardedPorts:
+        mySum= mySum + (1<<i)
+
+    return "{0:08b}".format(mySum)
 
 def rewardCommand(port):
     """
@@ -68,7 +191,61 @@ def switchOffLightCommand(port):
     port = 1 << port # shift the one to the bit representing this port
     return command+port
     
+def start_trial():
+    """
+    Function to start a trial
+    """
+    global isProbeTrial
+    global msg
+    global lightStatus
+    global nextLightChange
+    global nRewards # number of reward in the current trial
+    global nChoices # number of chioces in the current trial
+    
+    # reset to 0
+    nRewards=0 
+    nChoices=0
+    
+    
+    sleep(0.1)
+    pubCommand.publish(myCmd["allLightsOn"])
 
+    # decide if this is a light trial, get a random number from 0 to 1, compare to our proportion of probe trials
+    myRand = np.random.uniform()
+    #print("rand:",myRand, "probe prop.:",probeTrialProportion)
+    if myRand < probeTrialProportion:
+        isProbeTrial=True
+        msg.frame_id="probe"
+        msg.stamp=rospy.get_rostime()+ rospy.Duration(lightOnDurationSec/2)  # add time so it is in the middle of the light interval
+        pubTaskEvent.publish(msg)
+    else:
+        isProbeTrial=False
+    lightStatus=1
+    nextLightChange = time.time()+lightOnDurationSec
+    
+def read_config_file():
+    """
+    Function to read the config file with the rewarded ports and images on screens.
+    """
+    directory="/ext_drives/d69/data/electro/config_files"
+    fn =  directory+"/"+mouseName+".config"
+    
+    if not os.path.exists(fn):
+        raise IOError("File {} is missing".format(fn))
+    
+    with open(fn, 'r') as f:
+        config = json.load(f)
+    return config
+        
+    
+def end_trial():
+    """
+    Function run at the end of a trial
+    """
+    
+    update_performance(nRewards,nChoices)
+    start_dark_period()
+    
 def start_dark_period():
     """
     start the dark period: switch off all lights and set the next light change to the current time + some random time & rotate the arena
@@ -81,17 +258,60 @@ def start_dark_period():
     lightOffDurationSec_random = lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
     nextLightChange = time.time() + lightOffDurationSec_random
 
-    sleep(2)
+    sleep(2) # add some time before the arena starts rotating (allow reward collection)
     possible_angles = [0,90,180]
     angle_to_rotate = np.random.choice(possible_angles)
     lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
     rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)
-    pubArenaDuration.publish(lightOffDurationSec_random_round)
+    pubArenaDuration.publish(lightOffDurationSec_random_round) # set the time it will take to rotate
     sleep(0.1)
-    pubArenaControl.publish(angle_to_rotate)
+    pubArenaControl.publish(angle_to_rotate) # starts rotating the arena
     sleep(0.1)
     
+def update_performance(n_rewards,n_choices):
+    """
+    update the performance of the mouse at the end of a trial
+    """
     
+    global perfo
+        
+    
+    if n_rewards < 0 or n_rewards > 2:
+        raise ValueError("n_rewards should range from 0 to 2 but was {}".format(n_rewards))
+    if n_choices < 0 or n_choices > 2:
+        raise ValueError("n_choices should range from 0 to 2 but was {}".format(n_rewards))
+    
+    
+    
+    if perfo["n_trials_done"] < perfo["n_trials_history"]:
+        perfo["reward_history"][perfo["n_trials_done"]]=n_rewards
+        perfo["choice_history"][perfo["n_trials_done"]]=n_choices
+    else:
+        perfo["reward_history"] = np.roll(perfo["reward_history"],-1)
+        perfo["reward_history"][perfo["n_trials_history"]-1] = n_rewards
+        perfo["choice_history"] = np.roll(perfo["choice_history"],-1)
+        perfo["choice_history"][perfo["n_trials_history"]-1] = n_choices
+        
+        
+    perfo["n_trials_done"]+=1
+    
+    # Calculate mean reward and mean choice over the last n_trials_history trials
+    perfo["mean_reward"] = np.nanmean(perfo["reward_history"])
+    perfo["mean_choice"] = np.nanmean(perfo["choice_history"])
+    
+    
+    indices = np.logical_and(perfo["choice_history"] != 0,~np.isnan(perfo["choice_history"]))
+    if indices.sum() == 0:
+        perfo["percentate_correct"] = 0
+    else:
+        perfo["percentage_correct"] = np.sum(perfo["reward_history"][indices]) / np.sum(perfo["choice_history"][indices])
+    
+    print("trial done:", perfo["n_trials_done"])
+    print("reward history:",perfo["reward_history"])
+    print("choice history:",perfo["choice_history"])
+    print("mean reward/trial:", perfo["mean_reward"])
+    print("mean choice/trial:", perfo["mean_choice"])
+    print("percentage correct:", perfo["percentage_correct"])
 
 def callbackIRBeam(data):
     """
@@ -101,6 +321,8 @@ def callbackIRBeam(data):
     global nextLightChange
     global lightStatus
     global rewardPortList # ports that have been already rewarded during this trial
+    global nRewards
+    global nChoices
     
     now = time.time()
     #print("{} {} {}".format(data.frame_id,lightStatus,isProbeTrial))
@@ -108,7 +330,6 @@ def callbackIRBeam(data):
     messagePortNo = int(data.frame_id.split()[1])
     #print(message,messagePortNo)
     
-    #start_dark_period = False
 
     # if a port is not in use, don't do anything
     if messagePortNo >= nPorts:
@@ -116,7 +337,7 @@ def callbackIRBeam(data):
        
     if message == "broken" and lightStatus == 1 and lastRewardTime+refractoryDurationSec < now and isProbeTrial == False:
 
-        if  messagePortNo in rewardedPorts and messagePortNo not in rewardPortList: # is a port that we reward, but has not been depleated yet
+        if  messagePortNo in config["rewarded_ports"] and messagePortNo not in rewardPortList: # is a port that we reward, but has not been depleated yet
 
             pubCommand.publish(rewardCommand(messagePortNo)) # give reward to the broken port
             rewardPortList.append(messagePortNo) # add to the list of rewarded port within this trial
@@ -124,24 +345,21 @@ def callbackIRBeam(data):
             sleep(0.1)
              #
             pubCommand.publish(switchOffLightCommand(messagePortNo))
+            
+            
+            nRewards= nRewards+1 
+            nChoices= nChoices+1
+    
 
             # if all ports have been depleated
-            if len(rewardPortList) == len(rewardedPorts):
-            	# start_dark_period = True
-            	start_dark_period()
+            if len(rewardPortList) == len(config["rewarded_ports"]):
+            	end_trial()
 
 
-        if messagePortNo not in rewardedPorts: # the animal poke a wrong port, end this trial there
-            # start_dark_period = True
-            start_dark_period()
+        if messagePortNo not in config["rewarded_ports"]: # the animal poke a wrong port, end this trial there
+            nChoices= nChoices+1
+            end_trial()
             
-    #if start_dark_period:
-    #	# start the dark period either because all ports have been depleated or the animal poke a wrong port
-    #	pubCommand.publish(myCmd["allLightsOff"])
-    #	lightStatus=0
-    #	lightOffDurationSec_random = lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
-    #	nextLightChange = time.time() + lightOffDurationSec_random
-
             
 
 def callbackArenaInfo(data):
@@ -173,7 +391,7 @@ parser.add_argument("-r", "--refractoryDuration",help="set the refractory period
 parser.add_argument("-p", "--probeTrialProportion",help="set the proportion of probe trials (from 0 to 1)",type=float, action="store",default = "0.0")
 parser.add_argument("-d","--directory", help="create the direcotry for the data in "+defaultDatabase,action="store_true")
 parser.add_argument("-t","--transfer", help="transfer the data files to the data directory in " + defaultDatabase,action="store_true")
-parser.add_argument("-P", "--rewardedPorts",help="set the rewarded ports, using 0001, 0010, 0011, etc. One is rewarded, 0 is non-rewarded", action="store",default = "0011")
+#parser.add_argument("-P", "--rewardedPorts",help="set the rewarded ports, using 0001, 0010, 0011, etc. One is rewarded, 0 is non-rewarded", action="store",default = "0011")
 
 ## get the time
 now = datetime.datetime.now()
@@ -187,20 +405,13 @@ lightOffDurationSec = args.lightOffDuration
 refractoryDurationSec = args.refractoryDuration
 probeTrialProportion = args.probeTrialProportion
 
-if len(args.rewardedPorts) != nPorts:
-    raise ValueError("rewardedPorts should have a length of nPorts {}".format(nPorts))
+# read the configuration file
+config = read_config_file()
+print(config)
+print("Rewarded ports:", config["rewarded_ports"])
 
-# get the rewarded ports
-rewardedPorts= []
-for i,v in enumerate((args.rewardedPorts[::-1])): # reverse order to read from right to left (as bit operations)
-    if v == "1":
-        rewardedPorts.append(i)
-print("Rewarded ports:", rewardedPorts)
 
 isProbeTrial = False
-
-
-
 now = datetime.datetime.now()
 sessionName=mouseName + now.strftime("-%d%m%Y-%H%M")
 fileBase= localData + mouseName + now.strftime("-%d%m%Y-%H%M")
@@ -252,12 +463,25 @@ pubCommand = rospy.Publisher('multi_port_control',Int32,queue_size=2)
 pubArenaMode = rospy.Publisher('arena_mode', Int32, queue_size=1)
 pubArenaDuration = rospy.Publisher('arena_duration', Int32, queue_size=1)
 pubArenaControl = rospy.Publisher('arena_control', Int32, queue_size=1)
+
+#topic for monitor control
+
+#pubMonitorControl = rospy.Publisher('monitor_control', String, queue_size=1)
+
+
+
+
+
+
 # topic for arena feedback
 rospy.Subscriber("arena_info", Int32, callbackArenaInfo)
 # topic for logging
 pubTaskEvent = rospy.Publisher('task_event',Header,queue_size=2)
 # topic for callback on IR break
 rospy.Subscriber("multi_port_ir_report", Header, callbackIRBeam)
+# topic for monitor control
+rospy.Subscriber("monitor_control", String, callbackMonitorControl)
+
 
 
 sleep(1) # wait until this node is up and running
@@ -265,12 +489,12 @@ sleep(1) # wait until this node is up and running
 
 
 ## check that the nodes, topics and services needed are running
-nodeList=["/node_beams","/node_arena","/multiport_task_logger","/cv_camera_arena_top"]
-topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/cv_camera_arena_top/image_raw","/arena_control", "/arena_duration", "/arena_mode"]
+nodeList=["/node_beams","/node_arena","/multiport_task_logger","/cv_camera_arena_top","/monitor_control"]
+topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/cv_camera_arena_top/image_raw","/arena_control", "/arena_duration", "/arena_mode/", "/monitor_control/"]
 serviceList=[]
 
 if not checkNodesTopicServices(nodeList,topicList,serviceList):
-  sys.exit()
+    sys.exit()
 print("All nodes and topics are there")
 
 
@@ -286,6 +510,7 @@ if args.directory:
 
 master="a230-pc89"
 arenaCameraHost="a230-pc005"
+monitorControlPC="a23-PC51"
         
 msg=Header()
 msg.frame_id="start"
@@ -293,8 +518,7 @@ msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
 
 
-rpInt = int(args.rewardedPorts,2)
-msg.frame_id="rewardedPort_{0:08b}".format(rpInt)
+msg.frame_id="rewardedPort_{}".format(rewardedPorts_to_byteRepresentation(config["rewarded_ports"]))
 msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
 
@@ -316,8 +540,10 @@ sleep(2.0)
 pubArenaMode.publish(1)
 print("ready")
 
+display_images()
 
 timeout = time.time() + sessionDurationSec ## time at which to stop
+
 
 
 # make sure we start with light off
@@ -327,6 +553,7 @@ lastLightChange = time.time()
 print("Wait 5 seconds until light on")
 nextLightChange = lastLightChange+5   #lightOffDurationSec + np.random.randint(low=-5, high=5, size=1)[0]
 
+        
 
 while True:
 
@@ -336,27 +563,14 @@ while True:
         rospy.loginfo("light change by time")
         rewardPortList=[]
         
-        if lightStatus == 0: # light will turn on
+        if lightStatus == 0: # light will turn on, beginning of a trial
             rospy.loginfo("light ON")
-            sleep(0.1)
-            pubCommand.publish(myCmd["allLightsOn"])
+            start_trial()
             
-            # decide if this is a light trial, get a random number from 0 to 1, compare to our proportion of probe trials
-            myRand = np.random.uniform()
-            #print("rand:",myRand, "probe prop.:",probeTrialProportion)
-            if myRand < probeTrialProportion:
-                isProbeTrial=True
-                msg.frame_id="probe"
-                msg.stamp=rospy.get_rostime()+ rospy.Duration(lightOnDurationSec/2)  # add time so it is in the middle of the light interval
-                pubTaskEvent.publish(msg)
-            else:
-                isProbeTrial=False
-            lightStatus=1
-            nextLightChange = time.time()+lightOnDurationSec
-        else: # light will turn off
+        else: # default end of the trial if not caused by a beam break
             rospy.loginfo("light OFF")
             sleep(0.1)
-            start_dark_period()
+            end_trial()
     
     sleep(0.1)
     # stop the loop when session is done
@@ -367,6 +581,18 @@ while True:
 if lightStatus==1:
     pubCommand.publish(myCmd["allLightsOff"])
     lightStatus=0
+    
+while True:
+    
+    #to change the image location
+    
+    # Check if the number of trials done is greater than or equal to num_trials
+    
+    
+    if perfo["n_trials_done"] > perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
+        #print("image shift")
+        
+        shift_image_positions()
 
     
 msg=Header()
