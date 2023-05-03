@@ -1,24 +1,27 @@
-
 <launch>
+
+<!--
+To make the serial node work, we had to...
+cd ~/catkin_ws/src
+git clone https://github.com/ros-drivers/rosserial.git -b noetic-devel
+cd ..
+catkin_make
+-->
+
+
 <machine name="a230-pc89"
-      address="a230-pc89"
+      address="172.22.50.23"
       user="felix"
       env-loader="~/catkin_ws/src/multiPortRos/devel/master_a230-pc89_env.sh"
       default="true"
       />
+
 <machine name="a230-pc005"
       address="a230-pc005"
       user="felix"
       env-loader="~/catkin_ws/src/multiPortRos/devel/a230-pc005_env.sh"
       default="false"
       />
-<machine name="a230-pc51"
-      address="a230-pc51"
-      user="felix"
-      env-loader="~/roscvimage_catkinws/src/multiPortRos/devel/a230-pc51_env.sh"
-      default="false"
-      />
-
 
 <node machine="a230-pc89"
       name="node_beams"

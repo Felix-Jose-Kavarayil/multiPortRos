@@ -31,14 +31,4 @@
       pkg="rospy_tutorials"
       output="screen"
       />
-
-<node machine="a230-pc005"
-      type="talker"
-      name="talker1"
-      pkg="rospy_tutorials"
-      output="screen"
-      />
-
-
-
 </launch>

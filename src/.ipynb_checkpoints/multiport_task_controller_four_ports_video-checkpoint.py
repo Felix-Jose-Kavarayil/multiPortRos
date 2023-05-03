@@ -599,7 +599,7 @@ while True:
             #if perfo["n_trials_done"] > perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
             if perfo["n_trials_done"] > perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
         
-            shift_image_positions()
+                shift_image_positions()
         
                 print("image shift")
             

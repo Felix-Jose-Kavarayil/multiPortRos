@@ -25,12 +25,15 @@
       pkg="rospy_tutorials"
       output="screen"
       />
+
+
 <node machine="a230-pc51"
-      type="talker"
-      name="talker"
-      pkg="rospy_tutorials"
+      name="monitor_control"
+      type="monitor_control_pyqt.py"
+      pkg="monitor_control"
       output="screen"
       />
+
 
 <node machine="a230-pc005"
       type="talker"
