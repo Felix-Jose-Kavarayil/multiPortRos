@@ -196,7 +196,7 @@ def read_config_file():
         config = json.load(f)
     return config
 
-
+'''
 
 def shift_image_positions():
 
@@ -227,7 +227,57 @@ def shift_image_positions():
 
     # Display the images using the provided function
     display_images()
-    
+ '''
+'''
+def shift_image_positions():
+
+    """
+    Shift images to the next position and display them using the provided function
+    """ 
+
+    # Read the config file
+    read_config_file()
+
+    # Get the current order of the images
+    current_order = list(range(len(config["window_files"])))
+
+    # Define the shift pattern
+    shift_patterns = [[1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2], [0, 1, 2, 3]]
+
+    # Shift the order according to the pattern
+    shifted_order = current_order
+
+    for shift_pattern in shift_patterns:
+        shifted_order = [shifted_order[i] for i in shift_pattern]
+        shifted_images = [config["window_files"][i] for i in shifted_order]
+        display_images()
+        time.sleep(1) # Add a delay to slow down the shift and make it visible
+
+    # Update the config with the new image order
+    config["window_files"] = shifted_images
+ '''
+def shift_image_positions():
+    """
+    Shift images to the next position and display them using the provided function
+    """ 
+    # Read the config file
+    read_config_file()
+
+    # Get the current order of the images
+    current_order = list(range(len(config["window_files"])))
+
+    # Rotate the order one step to the right
+    rotated_order = current_order[-1:] + current_order[:-1]
+
+    # Reorder the images based on the rotated order
+    rotated_images = [config["window_files"][i] for i in rotated_order]
+
+    # Update the config with the new image order
+    config["window_files"] = rotated_images
+
+    # Display the images using the provided function
+    display_images()
+
 
 def display_images():
     """
@@ -260,6 +310,16 @@ def end_trial():
     
     update_performance(nRewards,nChoices)
     start_dark_period()
+    
+    sleep(0.2)
+    
+    #to change the image location
+    
+    # Check if the number of trials done is greater than or equal to num_trials
+    
+    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
+        shift_image_positions()
+        print("image shift")
     
 def start_dark_period():
     """
@@ -570,8 +630,6 @@ print("Wait 5 seconds until light on")
 nextLightChange = lastLightChange+5   #lightOffDurationSec + np.random.randint(low=-5, high=5, size=1)[0]
 
 
-
-
 while True:
     
 
@@ -590,19 +648,6 @@ while True:
             rospy.loginfo("light OFF")
             sleep(0.1)
             end_trial()
-            
-            #to change the image location
-    
-            # Check if the number of trials done is greater than or equal to num_trials
-    
-    
-            #if perfo["n_trials_done"] > perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
-            if perfo["n_trials_done"] > perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
-        
-                shift_image_positions()
-        
-                print("image shift")
-            
     
     
     sleep(0.1)
