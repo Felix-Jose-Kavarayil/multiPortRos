@@ -52,55 +52,6 @@ perfo["reward_history"][:]=np.nan
 perfo["choice_history"][:]=np.nan
 
 
-    
-   
-
-    
-    
-'''
-    
-    # Read the config file
-    read_config_func()
-    
-    # Get the current order of the images
-    current_order = list(range(len(config["window_files"])))
-
-    # Define the shift pattern
-    shift_pattern = [3, 0, 1, 2]
-
-    # Shift the order according to the pattern
-    shifted_order = [current_order[shift_pattern[i]] for i in range(len(current_order))]
-
-    # Reorder the images based on the shifted order
-    shifted_images = [config["window_files"][i] for i in shifted_order]
-
-    # Update the config with the new image order
-    config["window_files"] = shifted_images
-    
-    
-    
-    
-
-    # Get the current order of the images
-    current_order = list(range(len(config["window_files"])))
-
-    # Shift the order by one position
-    shifted_order = [current_order[-1]] + current_order[:-1]
-
-    # Reorder the images based on the shifted order
-    shifted_images = [config["window_files"][i] for i in shifted_order]
-
-    
-    # Add the first image to the end of the list to ensure there are 4 images
-    shifted_images.append(config["window_files"][0])
-    
-
-    # Update the config with the new image order
-    config["window_files"] = shifted_images[:4]
-    
-    '''
-    
-    
 
 def rewardedPorts_to_byteRepresentation(rewardedPorts):
     """
@@ -300,8 +251,32 @@ def display_images():
     aCmd = myString1+  " " + myString2
     print(aCmd)
     pubMonitorControl.publish(aCmd)
+    
 
-        
+    
+def shift_rewarded_ports():
+    """
+    Shift the rewarded ports between [1, 3] and [0, 2]
+    """
+    # Read the config file
+    read_config_file()
+
+    # Get the current rewarded ports
+    current_rewarded_ports = config["rewarded_ports"]
+
+    # Determine the new rewarded ports based on the current state
+    if current_rewarded_ports == [1, 3]:
+        new_rewarded_ports = [0, 2]
+    else:
+        new_rewarded_ports = [1, 3]
+
+    # Update the config with the new rewarded ports
+    config["rewarded_ports"] = new_rewarded_ports
+
+    # Call the image shift function
+    #shift_image_positions()
+
+    
     
 def end_trial():
     """
@@ -318,8 +293,14 @@ def end_trial():
     # Check if the number of trials done is greater than or equal to num_trials
     
     if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
+        
         shift_image_positions()
+        
         print("image shift")
+        
+        shift_rewarded_ports()
+        
+        print("reward ports shift")
     
 def start_dark_period():
     """
