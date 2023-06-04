@@ -278,29 +278,7 @@ def shift_rewarded_ports():
 
     
     
-def end_trial():
-    """
-    Function run at the end of a trial
-    """
-    
-    update_performance(nRewards,nChoices)
-    start_dark_period()
-    
-    sleep(0.2)
-    
-    #to change the image location
-    
-    # Check if the number of trials done is greater than or equal to num_trials
-    
-    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
-        
-        shift_image_positions()
-        
-        print("image shift")
-        
-        shift_rewarded_ports()
-        
-        print("reward ports shift")
+
     
 def start_dark_period():
     """
@@ -359,7 +337,7 @@ def update_performance(n_rewards,n_choices):
     
     indices = np.logical_and(perfo["choice_history"] != 0,~np.isnan(perfo["choice_history"]))
     if indices.sum() == 0:
-        perfo["percentate_correct"] = 0
+        perfo["percentage_correct"] = 0
     else:
         perfo["percentage_correct"] = np.sum(perfo["reward_history"][indices]) / np.sum(perfo["choice_history"][indices])
     
@@ -369,6 +347,65 @@ def update_performance(n_rewards,n_choices):
     print("mean reward/trial:", perfo["mean_reward"])
     print("mean choice/trial:", perfo["mean_choice"])
     print("percentage correct:", perfo["percentage_correct"])
+    
+#global_function = update_performance(n_rewards,n_choices)
+
+
+def reset_performance():
+    """
+    Reset the performance variables to their initial values
+    """
+    global perfo
+    
+    perfo = {
+        "n_trials_done": 0,
+        "n_trials_history": 10,  # Initial value for n_trials_history
+        "reward_history": np.zeros(10),  # Initial value for reward_history
+        "choice_history": np.zeros(10),  # Initial value for choice_history
+        "mean_reward": 0.0,  # Initial value for mean_reward
+        "mean_choice": 0.0,  # Initial value for mean_choice
+        "percentage_correct": 0.0  # Initial value for percentage_correct
+    }
+
+# Call the reset_performance function when needed to reset the performance
+reset_performance()
+
+
+
+def end_trial():
+    """
+    Function run at the end of a trial
+    """
+    
+    update_performance(nRewards,nChoices)
+    start_dark_period()
+    
+    sleep(0.2)
+    
+    #to change the image location
+    
+    # Check if the number of trials done is greater than or equal to num_trials
+    
+   
+    # Perform any necessary updates to perfo["n_trials_done"] and perfo["percentage_correct"]
+    
+    
+     
+    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.6:
+        
+        shift_image_positions()
+        
+        print("image shift")
+        
+        shift_rewarded_ports()
+        
+        print("reward ports shift")
+        
+        reset_performance()
+        
+        print("reset performance")
+
+    
 
 def callbackIRBeam(data):
     """
