@@ -341,6 +341,8 @@ def update_performance(n_rewards,n_choices):
     else:
         perfo["percentage_correct"] = np.sum(perfo["reward_history"][indices]) / np.sum(perfo["choice_history"][indices])
     
+   
+    
     print("trial done:", perfo["n_trials_done"])
     print("reward history:",perfo["reward_history"])
     print("choice history:",perfo["choice_history"])
@@ -357,6 +359,17 @@ def reset_performance():
     """
     global perfo
     
+    n_trials_history=10
+    perfo = {"n_trials_history" : n_trials_history,
+          "mean_reward" : np.nan, # for each trial it gets a 0,1,2 and this is the average over the last x trials
+          "mean_choice" : np.nan,
+          "percentage_correct" : np.nan, # percentage of correct choice
+          "n_trials_done" : 0,
+          "reward_history" : np.empty(n_trials_history),
+          "choice_history" : np.empty(n_trials_history)}
+    perfo["reward_history"][:]=np.nan
+    perfo["choice_history"][:]=np.nan
+    """
     perfo = {
         "n_trials_done": 0,
         "n_trials_history": 10,  # Initial value for n_trials_history
@@ -366,9 +379,9 @@ def reset_performance():
         "mean_choice": 0.0,  # Initial value for mean_choice
         "percentage_correct": 0.0  # Initial value for percentage_correct
     }
-
+    """
 # Call the reset_performance function when needed to reset the performance
-reset_performance()
+#reset_performance()
 
 
 
@@ -391,7 +404,7 @@ def end_trial():
     
     
      
-    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.6:
+    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1:
         
         shift_image_positions()
         
