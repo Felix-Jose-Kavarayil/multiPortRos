@@ -1,0 +1,57 @@
+
+<launch>
+<machine name="a230-pc89"
+      address="a230-pc89"
+      user="felix"
+      env-loader="~/catkin_ws/src/multiPortRos/devel/master_a230-pc89_env.sh"
+      default="true"
+      />
+<machine name="a230-pc005"
+      address="a230-pc005"
+      user="felix"
+      env-loader="~/catkin_ws/src/multiPortRos/devel/a230-pc005_env.sh"
+      default="false"
+      />
+<machine name="a230-pc51"
+      address="a230-pc51"
+      user="felix"
+      env-loader="~/roscvimage_catkinws/src/multiPortRos/devel/a230-pc51_env.sh"
+      default="false"
+      />
+
+
+<node machine="a230-pc89"
+      name="node_beams"
+      type="serial_node.py"
+      pkg="rosserial_python"
+      args="/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_8503331313735181F042-if00"
+      output="screen"
+      />
+<node machine="a230-pc89"
+      name="node_arena"
+      type="serial_node.py"
+      pkg="rosserial_python"
+      args="/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_550373130373515021F0-if00"
+      output="screen"
+      />
+ 
+<node machine="a230-pc89"
+      name="multiport_task_logger"
+      type="multiport_task_logger.py"
+      pkg="multiport_ros"
+      output="screen"
+      />
+
+<node machine="a230-pc005"
+      name="cv_camera_arena_top"
+      pkg="multiport_ros"
+      type="jetson_camera_node.py"
+      output="screen">
+      <param name="sensor_id" value="0" />
+      <param name="image_width" value="640" />
+      <param name="image_height" value="640" />
+      <param name="rate" value="30" />
+      <param name="camera_topic" value="cv_camera_arena_top" />
+      <param name="camera_frame_id" value="cv_camera_arena_top" />
+      </node>
+</launch>

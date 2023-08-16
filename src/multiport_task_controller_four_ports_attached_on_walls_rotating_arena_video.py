@@ -22,6 +22,9 @@ import numpy as np
 import json
 import getpass
 from multiport_common_funct import checkNodesTopicServices,enoughDiskSpace,createDirectory,copyDataFilesToDatabase
+from collections import deque
+
+
 
 lastRewardTime=time.time()
 lightStatus=0 # flag to know if the light is on or off
@@ -147,87 +150,35 @@ def read_config_file():
         config = json.load(f)
     return config
 
-'''
-
-def shift_image_positions():
-
+def rotateAngle(angle,rotation):
     """
-    Shift images to the next position and display them using the provided function
-    """ 
-
-    # Read the config file
-    read_config_file()
-
-    # Get the current order of the images
-    current_order = list(range(len(config["window_files"])))
-
-    # Define the shift pattern
-    shift_patterns = [[3, 0, 1, 2], [2, 3, 0, 1], [1, 2, 3, 0], [0, 1, 2, 3]]
-
-    # Shift the order according to the pattern
-    shifted_order = current_order
-
-    for shift_pattern in shift_patterns:
-        shifted_order = [shifted_order[i] for i in shift_pattern]
-
-    # Reorder the images based on the shifted order
-    shifted_images = [config["window_files"][i] for i in shifted_order]
-
-    # Update the config with the new image order
-    config["window_files"] = shifted_images
-
-    # Display the images using the provided function
-    display_images()
- '''
-'''
-def shift_image_positions():
-
+    Rotate an angle in degree by a certain rotation in degree
+    
+    The output range is from 0 to 359 and will be an integer
     """
-    Shift images to the next position and display them using the provided function
-    """ 
-
-    # Read the config file
-    read_config_file()
-
-    # Get the current order of the images
-    current_order = list(range(len(config["window_files"])))
-
-    # Define the shift pattern
-    shift_patterns = [[1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2], [0, 1, 2, 3]]
-
-    # Shift the order according to the pattern
-    shifted_order = current_order
-
-    for shift_pattern in shift_patterns:
-        shifted_order = [shifted_order[i] for i in shift_pattern]
-        shifted_images = [config["window_files"][i] for i in shifted_order]
-        display_images()
-        time.sleep(1) # Add a delay to slow down the shift and make it visible
-
-    # Update the config with the new image order
-    config["window_files"] = shifted_images
- '''
-def shift_image_positions():
+    initRad = ((angle+rotation)/360*2*np.pi)
+    x = np.cos(initRad)
+    y = np.sin(initRad)
+    newRad = np.arctan2(y,x)
+    newAngle = np.round((newRad)/(2*np.pi)*360).astype(int)
+    if newAngle < 0:
+        newAngleCorrected = 360+newAngle
+    else:
+        newAngleCorrected = newAngle
+    return newAngleCorrected
+    
+    
+def rotateVisualCues(cueList,visualCueRotation):
     """
-    Shift images to the next position and display them using the provided function
-    """ 
-    # Read the config file
-    read_config_file()
+    Rotate the visual cues (assuming that the rotation are by multiple of 90 degrees only)
+    """
+    visualCueRotation = rotateAngle(0,visualCueRotation) # to restrict the range from 0 to 359
+    myShift = int(visualCueRotation / 90)
+    myList = deque(cueList)
+    myList.rotate(myShift)
+    myList = list(myList)
+    return myList 
 
-    # Get the current order of the images
-    current_order = list(range(len(config["window_files"])))
-
-    # Rotate the order one step to the right
-    rotated_order = current_order[-1:] + current_order[:-1]
-
-    # Reorder the images based on the rotated order
-    rotated_images = [config["window_files"][i] for i in rotated_order]
-
-    # Update the config with the new image order
-    config["window_files"] = rotated_images
-
-    # Display the images using the provided function
-    display_images()
 
 
 def display_images():
@@ -254,32 +205,6 @@ def display_images():
     
 
     
-def shift_rewarded_ports():
-    """
-    Shift the rewarded ports between [1, 3] and [0, 2]
-    """
-    # Read the config file
-    read_config_file()
-
-    # Get the current rewarded ports
-    current_rewarded_ports = config["rewarded_ports"]
-
-    # Determine the new rewarded ports based on the current state
-    if current_rewarded_ports == [1, 3]:
-        new_rewarded_ports = [0, 2]
-    else:
-        new_rewarded_ports = [1, 3]
-
-    # Update the config with the new rewarded ports
-    config["rewarded_ports"] = new_rewarded_ports
-
-    # Call the image shift function
-    #shift_image_positions()
-
-    
-    
-
-    
 def start_dark_period():
     """
     start the dark period: switch off all lights and set the next light change to the current time + some random time & rotate the arena
@@ -287,20 +212,42 @@ def start_dark_period():
     rospy.loginfo("start dark period")
     global lightStatus
     global nextLightChange
+    global arenaOrientation
+    global portAngle
+    
     pubCommand.publish(myCmd["allLightsOff"])
     lightStatus=0
     lightOffDurationSec_random = lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
     nextLightChange = time.time() + lightOffDurationSec_random
 
     sleep(2) # add some time before the arena starts rotating (allow reward collection)
-    possible_angles = [0]
+    
+    
+    
+    possible_angles = [90, 0, -90]
     angle_to_rotate = np.random.choice(possible_angles)
     lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
     rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)
+    
+    
     pubArenaDuration.publish(lightOffDurationSec_random_round) # set the time it will take to rotate
     sleep(0.1)
     pubArenaControl.publish(angle_to_rotate) # starts rotating the arena
     sleep(0.1)
+    
+    ## 
+    arenaOrientation = arenaOrientation+angle_to_rotate
+    print("New arena orientation:",arenaOrientation)
+    
+   # Apply rotation to arenaOrientation
+    
+
+    for key in portAngle:
+        portAngle[key] = rotateAngle(portAngle[key],angle_to_rotate)
+    
+    print("portAngle:",portAngle)
+    
+    
     
 def update_performance(n_rewards,n_choices):
     """
@@ -390,6 +337,9 @@ def end_trial():
     Function run at the end of a trial
     """
     
+    global config
+    global rewardedAngles
+    
     update_performance(nRewards,nChoices)
     start_dark_period()
     
@@ -406,17 +356,20 @@ def end_trial():
      
     if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
         
-        shift_image_positions()
         
         print("image shift")
+        visualCueRotation=90
+        config["window_files"] = rotateVisualCues(config["window_files"],visualCueRotation)
+        display_images()
         
-        shift_rewarded_ports()
-        
-        print("reward ports shift")
-        
-        reset_performance()
+        print("update rewardedAngles")
+        rewardedAngles = [ rotateAngle(angle,visualCueRotation) for angle in rewardedAngles ]
         
         print("reset performance")
+        reset_performance()
+        
+        
+        
 
     
 
@@ -427,9 +380,11 @@ def callbackIRBeam(data):
     global lastRewardTime
     global nextLightChange
     global lightStatus
-    global rewardPortList # ports that have been already rewarded during this trial
+    global trialRewardPortList # ports that have been already rewarded during this trial
     global nRewards
     global nChoices
+
+    
     
     now = time.time()
     #print("{} {} {}".format(data.frame_id,lightStatus,isProbeTrial))
@@ -441,13 +396,21 @@ def callbackIRBeam(data):
     # if a port is not in use, don't do anything
     if messagePortNo >= nPorts:
         return
-       
+    
+    
+    # get the angle of the port, see if the angle is rewarded, if so reward the broken port
+    
+    
+    
     if message == "broken" and lightStatus == 1 and lastRewardTime+refractoryDurationSec < now and isProbeTrial == False:
+        
+        
+        
+        if portAngle[messagePortNo] in rewardedAngles and messagePortNo not in trialRewardPortList: # is a port that we reward, but has not been depleated yet
 
-        if  messagePortNo in config["rewarded_ports"] and messagePortNo not in rewardPortList: # is a port that we reward, but has not been depleated yet
 
             pubCommand.publish(rewardCommand(messagePortNo)) # give reward to the broken port
-            rewardPortList.append(messagePortNo) # add to the list of rewarded port within this trial
+            trialRewardPortList.append(messagePortNo) # add to the list of rewarded port within this trial
             lastRewardTime=time.time()
             sleep(0.1)
              #
@@ -459,11 +422,11 @@ def callbackIRBeam(data):
     
 
             # if all ports have been depleated
-            if len(rewardPortList) == len(config["rewarded_ports"]):
+            if len(trialRewardPortList) == len(config["rewarded_ports"]): #if len(trialRewardPortList) == len(config["rewarded_ports"]):
             	end_trial()
 
 
-        if messagePortNo not in config["rewarded_ports"]: # the animal poke a wrong port, end this trial there
+        if  portAngle[messagePortNo] not in rewardedAngles: # the animal poke a wrong port, end this trial there if messagePortNo not in config["rewarded_ports"]:
             nChoices= nChoices+1
             end_trial()
             
@@ -515,7 +478,15 @@ probeTrialProportion = args.probeTrialProportion
 # read the configuration file
 config = read_config_file()
 print(config)
+
+
 print("Rewarded ports:", config["rewarded_ports"])
+arenaOrientation = 0
+print("ArenaOrientation", arenaOrientation)
+portAngle = {0:0,1:90,2:180,3:270}
+print("portAngle:",portAngle)
+rewardedAngles = [portAngle[port] for port in config["rewarded_ports"]]
+print("rewardedAngles:",rewardedAngles)
 
 
 isProbeTrial = False
@@ -625,6 +596,7 @@ msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
 
 
+#msg.frame_id="rewardedPort_{}".format(rewardedPorts_to_byteRepresentation(config["rewarded_ports"]))
 msg.frame_id="rewardedPort_{}".format(rewardedPorts_to_byteRepresentation(config["rewarded_ports"]))
 msg.stamp=rospy.get_rostime()
 pubTaskEvent.publish(msg)
@@ -644,7 +616,7 @@ while True:
 	sleep(0.1)
 
 sleep(2.0)
-pubArenaMode.publish(1)
+pubArenaMode.publish(0)
 print("ready")
 
 display_images()
@@ -668,7 +640,7 @@ while True:
     if time.time() > nextLightChange:
 
         rospy.loginfo("light change by time")
-        rewardPortList=[]
+        trialRewardPortList=[]
         
         if lightStatus == 0: # light will turn on, beginning of a trial
             rospy.loginfo("light ON")

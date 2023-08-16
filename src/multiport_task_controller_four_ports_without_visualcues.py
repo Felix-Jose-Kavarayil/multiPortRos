@@ -82,7 +82,7 @@ def start_dark_period():
     nextLightChange = time.time() + lightOffDurationSec_random
 
     sleep(2)
-    possible_angles = [0,90,180]
+    possible_angles = [0]
     angle_to_rotate = np.random.choice(possible_angles)
     lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
     rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)

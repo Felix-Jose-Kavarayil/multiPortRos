@@ -293,7 +293,7 @@ def start_dark_period():
     nextLightChange = time.time() + lightOffDurationSec_random
 
     sleep(2) # add some time before the arena starts rotating (allow reward collection)
-    possible_angles = [0,90,180]
+    possible_angles = [0]
     angle_to_rotate = np.random.choice(possible_angles)
     lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
     rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)
@@ -404,7 +404,7 @@ def end_trial():
     
     
      
-    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1:
+    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
         
         shift_image_positions()
         

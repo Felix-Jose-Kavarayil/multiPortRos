@@ -148,6 +148,23 @@ def read_config_file():
     return config
 
 '''
+def read_lightOff_config_files():
+    
+    """
+    Function to read the config files to load black background images on screens.
+    """
+    directory="/ext_drives/d69/data/electro/config_files"
+    fn =  directory+"/"+"black.config"
+    
+    if not os.path.exists(fn):
+        raise IOError("File {} is missing".format(fn))
+    
+    with open(fn, 'r') as f:
+        config = json.load(f)
+    return config
+'''   
+
+'''
 
 def shift_image_positions():
 
@@ -253,6 +270,31 @@ def display_images():
     pubMonitorControl.publish(aCmd)
     
 
+def display_black_images():
+    
+    """
+    Display images listed in the config["window_files"] in the windows
+    """
+    #for i,wf in enumerate(config["window_files"]):
+        #print("{} {}".format(wf,i+1))
+       # pubMonitorControl.publish("{} {}".format(wf,i+1))
+       # sleep(0.5)
+    
+    myString1 = ""
+    for i in config["window_black_files"]:
+        myString1= myString1+i+","
+    myString1=myString1[:-1]
+    myString1
+    myString2 = ""
+    for i,j in enumerate(config["window_black_files"]):
+        myString2= myString2+"{}".format(i)+","
+    myString2= myString2[:-1]
+    aCmd = myString1+  " " + myString2
+    print(aCmd)
+    pubMonitorControl.publish(aCmd)
+    
+    
+
     
 def shift_rewarded_ports():
     """
@@ -293,7 +335,7 @@ def start_dark_period():
     nextLightChange = time.time() + lightOffDurationSec_random
 
     sleep(2) # add some time before the arena starts rotating (allow reward collection)
-    possible_angles = [0]
+    possible_angles = [0,90,180]
     angle_to_rotate = np.random.choice(possible_angles)
     lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
     rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)
@@ -392,8 +434,10 @@ def end_trial():
     
     update_performance(nRewards,nChoices)
     start_dark_period()
+    display_black_images()
     
-    sleep(0.2)
+    
+    sleep(13)
     
     #to change the image location
     
@@ -404,7 +448,7 @@ def end_trial():
     
     
      
-    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
+    if perfo["n_trials_done"] % 1 == 0 and perfo["mean_reward"] > 1:
         
         shift_image_positions()
         
@@ -417,8 +461,11 @@ def end_trial():
         reset_performance()
         
         print("reset performance")
-
-    
+        
+    else:
+        
+        display_images()
+          
 
 def callbackIRBeam(data):
     """
