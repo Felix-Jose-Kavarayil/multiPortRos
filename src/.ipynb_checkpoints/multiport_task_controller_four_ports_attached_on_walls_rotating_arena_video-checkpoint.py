@@ -217,37 +217,59 @@ def start_dark_period():
     
     pubCommand.publish(myCmd["allLightsOff"])
     lightStatus=0
-    lightOffDurationSec_random = lightOffDurationSec+np.random.randint(low=-5, high=5, size=1)[0]
-    nextLightChange = time.time() + lightOffDurationSec_random
+    
+    
+    
+    possibleOrientation = [0,90,180,270]
+    selectedOrientation = np.random.choice(possibleOrientation)
+    print("arenaOrientation:",arenaOrientation)
+    print("selectedOrientation:",selectedOrientation)
+    # get the rotation angle between the arenaOrientation and selectedOrientation to rotate the port
+    angle_to_rotate_port = rotateAngle(0,selectedOrientation-arenaOrientation)
+    print("angle_to_rotate_port:",angle_to_rotate_port)
+    # how many position the arena is going to get through to get to the selected angle
 
+    index1 = possibleOrientation.index(arenaOrientation)
+    index2 =possibleOrientation.index(selectedOrientation)
+    arenaMovementLength = abs(index1-index2)
+    print("arenaMovementLength:",arenaMovementLength)
+
+
+    secondsPer90Degrees = 4
+    darkTimeAfterRotation = 2
+
+    rotationTime = secondsPer90Degrees*arenaMovementLength
+    print("rotationTime:",rotationTime)
+
+    if minLightOffDurationSec > rotationTime+darkTimeAfterRotation:
+        darkTime = minLightOffDurationSec
+    else :
+        darkTime = rotationTime+darkTimeAfterRotation
+
+    print("darkTime:",darkTime)
+    
     sleep(2) # add some time before the arena starts rotating (allow reward collection)
     
+    nextLightChange = time.time() + darkTime
+
     
-    
-    possible_angles = [0, 90, -90]
-    angle_to_rotate = np.random.choice(possible_angles)
-    lightOffDurationSec_random_round = int(lightOffDurationSec_random)-4
-    rospy.loginfo("light off seconds %s rounded %s:",lightOffDurationSec_random, lightOffDurationSec_random_round)
-    
-    
-    pubArenaDuration.publish(lightOffDurationSec_random_round) # set the time it will take to rotate
+    pubArenaDuration.publish(rotationTime) # set the time it will take to rotate
     sleep(0.1)
-    pubArenaControl.publish(angle_to_rotate) # starts rotating the arena
+    print("publishing pubArenaControl with",selectedOrientation)
+    pubArenaControl.publish(selectedOrientation) # starts rotating the arena
     sleep(0.1)
     
     ## 
-    arenaOrientation = arenaOrientation+angle_to_rotate
+    arenaOrientation = selectedOrientation
     print("New arena orientation:",arenaOrientation)
     
    # Apply rotation to arenaOrientation
-    
-
-    print("New arena orientation:",arenaOrientation)
-
+    print("Applying {} degree rotation to portAngle".format(angle_to_rotate_port))
+    print("portAngle before rotation:", portAngle)
     for key in portAngle:
-        portAngle[key] = rotateAngle(portAngle[key],angle_to_rotate)
+        portAngle[key] = rotateAngle(portAngle[key],angle_to_rotate_port)
     
-    print("portAngle:",portAngle)
+    print("portAngle after rotation:",portAngle)
     
     
     
@@ -355,7 +377,8 @@ def end_trial():
     # Perform any necessary updates to perfo["n_trials_done"] and perfo["percentage_correct"]
     
     
-     
+    """
+
     if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
         
         
@@ -369,7 +392,25 @@ def end_trial():
         
         print("reset performance")
         reset_performance()
-        
+    """
+
+
+
+    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
+
+        # Choose a random rotation angle from 90, 180, or 270
+        visualCueRotation = random.choice([90, 180, 270])
+
+        print("image shift")
+        config["window_files"] = rotateVisualCues(config["window_files"], visualCueRotation)
+        display_images()
+
+        print("update rewardedAngles")
+        rewardedAngles = [rotateAngle(angle, visualCueRotation) for angle in rewardedAngles]
+
+        print("reset performance")
+        reset_performance()
+
         
         
 
@@ -457,7 +498,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("mouse",help="set the mouse name")
 parser.add_argument("-s", "--sessionDuration",help="set the session duration in seconds",type=int, action="store",default = "10")
 parser.add_argument("-l", "--lightOnDuration",help="set the light on duration in seconds",type=int, action="store",default = "20")
-parser.add_argument("-o", "--lightOffDuration",help="set the light off duration in seconds",type=int, action="store",default = "40")
+parser.add_argument("-o", "--minLightOffDuration",help="set the minimal light off duration in seconds",type=int, action="store",default = "20")
 
 parser.add_argument("-r", "--refractoryDuration",help="set the refractory period in seconds between two rewards",type=float, action="store",default = "2")
 parser.add_argument("-p", "--probeTrialProportion",help="set the proportion of probe trials (from 0 to 1)",type=float, action="store",default = "0.0")
@@ -473,7 +514,7 @@ task=ntpath.basename(sys.argv[0])
 mouseName=args.mouse
 sessionDurationSec=args.sessionDuration
 lightOnDurationSec = args.lightOnDuration
-lightOffDurationSec = args.lightOffDuration
+minLightOffDurationSec = args.minLightOffDuration
 refractoryDurationSec = args.refractoryDuration
 probeTrialProportion = args.probeTrialProportion
 
@@ -485,7 +526,7 @@ print(config)
 print("Rewarded ports:", config["rewarded_ports"])
 arenaOrientation = 0
 print("ArenaOrientation", arenaOrientation)
-portAngle = {0:0,1:90,2:180,3:270}
+portAngle = {2:0,3:90,0:180,1:270}
 print("portAngle:",portAngle)
 rewardedAngles = [portAngle[port] for port in config["rewarded_ports"]]
 print("rewardedAngles:",rewardedAngles)
@@ -499,10 +540,10 @@ rospy.set_param("file_base", fileBase) # used by logger
 mouseDir= defaultDatabase+mouseName
 
 # set ros parameters to set the file name for the video created by the jetson_camera_node.py
-rospy.set_param("cv_camera_arena_top/output_path",fileBase+".arena_top.avi") # used to record the video
+#rospy.set_param("cv_camera_arena_top/output_path",fileBase+".arena_top.avi") # used to record the video
 
 
-print("sessionName:",sessionName,"Session duration:",sessionDurationSec,"Light on duration:",lightOnDurationSec,"Light off duration:", lightOffDurationSec ,"Refractory on reward:",refractoryDurationSec, "Probe trial proportion:",probeTrialProportion)
+print("sessionName:",sessionName,"Session duration:",sessionDurationSec,"Light on duration:",lightOnDurationSec,"Light off duration:", minLightOffDurationSec ,"Refractory on reward:",refractoryDurationSec, "Probe trial proportion:",probeTrialProportion)
 print("file:",fileBase)
 
 
@@ -568,9 +609,9 @@ sleep(1) # wait until this node is up and running
 
 
 
-## check that the nodes, topics and services needed are running
-nodeList=["/node_beams","/node_arena","/multiport_task_logger","/cv_camera_arena_top"]
-topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/cv_camera_arena_top/image_raw","/arena_control", "/arena_duration", "/arena_mode"]
+## check that the nodes, topics and services needed are running  "/cv_camera_arena_top" -shouöd go in the noselist, "/cv_camera_arena_top/image_raw" - should go in the topic list 
+nodeList=["/node_beams","/node_arena","/multiport_task_logger"]
+topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/arena_control", "/arena_duration", "/arena_mode"]
 serviceList=[]
 
 if not checkNodesTopicServices(nodeList,topicList,serviceList):
@@ -589,7 +630,7 @@ if args.directory:
         sys.exit()
 
 master="a230-pc89"
-arenaCameraHost="a230-pc005"
+#arenaCameraHost="a230-pc005"
 
         
 msg=Header()
@@ -676,12 +717,18 @@ pubTaskEvent.publish(msg)
 launch.shutdown()
 sleep(10)
 
-
+'''
 if args.transfer:
     copyDataFilesToDatabase(fileBase,mouseDir,sessionName,
                             master, arenaCameraHost,
                             userName,
                             arenaCamera=True)
+'''
+
+if args.transfer:
+    copyDataFilesToDatabase(fileBase,mouseDir,sessionName,
+                            master,
+                            userName)
 
 sleep(3)
 rospy.signal_shutdown("task is over")

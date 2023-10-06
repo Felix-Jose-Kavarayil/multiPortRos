@@ -183,20 +183,20 @@ def rotateVisualCues(cueList,visualCueRotation):
 
 def display_images():
     """
-    Display images listed in the config["window_files"] in the windows
+    Display images listed in the config["novel_files"] in the windows
     """
-    #for i,wf in enumerate(config["window_files"]):
+    #for i,wf in enumerate(config["novel_files"]):
         #print("{} {}".format(wf,i+1))
        # pubMonitorControl.publish("{} {}".format(wf,i+1))
        # sleep(0.5)
     
     myString1 = ""
-    for i in config["window_files"]:
+    for i in config["novel_files"]:
         myString1= myString1+i+","
     myString1=myString1[:-1]
     myString1
     myString2 = ""
-    for i,j in enumerate(config["window_files"]):
+    for i,j in enumerate(config["novel_files"]):
         myString2= myString2+"{}".format(i)+","
     myString2= myString2[:-1]
     aCmd = myString1+  " " + myString2
@@ -236,7 +236,7 @@ def start_dark_period():
 
 
     secondsPer90Degrees = 4
-    darkTimeAfterRotation = 2
+    darkTimeAfterRotation = 1
 
     rotationTime = secondsPer90Degrees*arenaMovementLength
     print("rotationTime:",rotationTime)
@@ -376,15 +376,14 @@ def end_trial():
    
     # Perform any necessary updates to perfo["n_trials_done"] and perfo["percentage_correct"]
     
-    
-    """
-
-    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
+    # if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
+    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 10 == 0:
+   
         
         
         print("image shift")
         visualCueRotation=90
-        config["window_files"] = rotateVisualCues(config["window_files"],visualCueRotation)
+        config["novel_files"] = rotateVisualCues(config["novel_files"],visualCueRotation)
         display_images()
         
         print("update rewardedAngles")
@@ -392,25 +391,7 @@ def end_trial():
         
         print("reset performance")
         reset_performance()
-    """
-
-
-
-    if perfo["n_trials_done"] >= perfo["n_trials_history"] and perfo["n_trials_done"] % 1 == 0 and perfo["percentage_correct"] > 0.66 and perfo["mean_reward"] > 1.3:
-
-        # Choose a random rotation angle from 90, 180, or 270
-        visualCueRotation = random.choice([90, 180, 270])
-
-        print("image shift")
-        config["window_files"] = rotateVisualCues(config["window_files"], visualCueRotation)
-        display_images()
-
-        print("update rewardedAngles")
-        rewardedAngles = [rotateAngle(angle, visualCueRotation) for angle in rewardedAngles]
-
-        print("reset performance")
-        reset_performance()
-
+        
         
         
 
@@ -540,7 +521,7 @@ rospy.set_param("file_base", fileBase) # used by logger
 mouseDir= defaultDatabase+mouseName
 
 # set ros parameters to set the file name for the video created by the jetson_camera_node.py
-#rospy.set_param("cv_camera_arena_top/output_path",fileBase+".arena_top.avi") # used to record the video
+rospy.set_param("cv_camera_arena_top/output_path",fileBase+".arena_top.avi") # used to record the video
 
 
 print("sessionName:",sessionName,"Session duration:",sessionDurationSec,"Light on duration:",lightOnDurationSec,"Light off duration:", minLightOffDurationSec ,"Refractory on reward:",refractoryDurationSec, "Probe trial proportion:",probeTrialProportion)
@@ -609,9 +590,9 @@ sleep(1) # wait until this node is up and running
 
 
 
-## check that the nodes, topics and services needed are running  "/cv_camera_arena_top" -shouöd go in the noselist, "/cv_camera_arena_top/image_raw" - should go in the topic list 
-nodeList=["/node_beams","/node_arena","/multiport_task_logger"]
-topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/arena_control", "/arena_duration", "/arena_mode"]
+## check that the nodes, topics and services needed are running
+nodeList=["/node_beams","/node_arena","/multiport_task_logger","/cv_camera_arena_top"]
+topicList=["/multi_port_control","/multi_port_ir_report","/task_event","/cv_camera_arena_top/image_raw","/arena_control", "/arena_duration", "/arena_mode"]
 serviceList=[]
 
 if not checkNodesTopicServices(nodeList,topicList,serviceList):
@@ -630,7 +611,7 @@ if args.directory:
         sys.exit()
 
 master="a230-pc89"
-#arenaCameraHost="a230-pc005"
+arenaCameraHost="a230-pc005"
 
         
 msg=Header()
@@ -717,18 +698,12 @@ pubTaskEvent.publish(msg)
 launch.shutdown()
 sleep(10)
 
-'''
+
 if args.transfer:
     copyDataFilesToDatabase(fileBase,mouseDir,sessionName,
                             master, arenaCameraHost,
                             userName,
                             arenaCamera=True)
-'''
-
-if args.transfer:
-    copyDataFilesToDatabase(fileBase,mouseDir,sessionName,
-                            master,
-                            userName)
 
 sleep(3)
 rospy.signal_shutdown("task is over")
