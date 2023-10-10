@@ -30,8 +30,8 @@ lastRewardTime=time.time()
 lightStatus=0 # flag to know if the light is on or off
 arenaState=None # state of arena
 nRewards=0 # number of reward in the current trial
-nChoices=0 # number of choices in the current trial
-
+nChoices=0 # number of different choices in the current trial
+maxNChoices=2 # max number of possible different choices in a trial
 
 nPorts=4
 myCmd = {"allLightsOn": int('0000000111111111',2), #511
@@ -116,9 +116,10 @@ def start_trial():
     global nChoices # number of chioces in the current trial
     
     # reset to 0
+    print("start_trial(), setting nRewards and nChoices to 0")
     nRewards=0 
     nChoices=0
-    
+
     
     sleep(0.1)
     pubCommand.publish(myCmd["allLightsOn"])
@@ -279,15 +280,14 @@ def update_performance(n_rewards,n_choices):
     """
     
     global perfo
-    
-        
+
+    print("entering update_performance(): n_rewards:", n_rewards, " n_choices:",n_choices)
     
     if n_rewards < 0 or n_rewards > 2:
         raise ValueError("n_rewards should range from 0 to 2 but was {}".format(n_rewards))
     if n_choices < 0 or n_choices > 2:
-        raise ValueError("n_choices should range from 0 to 2 but was {}".format(n_rewards))
-    
-    
+        raise ValueError("n_choices should range from 0 to 2 but was {}".format(n_choices))
+
     
     if perfo["n_trials_done"] < perfo["n_trials_history"]:
         perfo["reward_history"][perfo["n_trials_done"]]=n_rewards
@@ -427,8 +427,10 @@ def callbackIRBeam(data):
     global nRewards
     global nChoices
 
+    print("entering callbackIRBeam()"," nChoices:",nChoices, " nRewards:",nRewards, " rewardedAngles:", rewardedAngles)
     
     
+   
     now = time.time()
     #print("{} {} {}".format(data.frame_id,lightStatus,isProbeTrial))
     message= data.frame_id.split()[0]
@@ -436,10 +438,17 @@ def callbackIRBeam(data):
     #print(message,messagePortNo)
     
 
+    print("in callbackIRBeam(), messagePortNo:", messagePortNo, " nChoices:",nChoices, " nRewards:",nRewards, " rewardedAngles:", rewardedAngles)
     # if a port is not in use, don't do anything
     if messagePortNo >= nPorts:
         return
     
+    # only process this beam break if we haven't reached the maximum number of different choices
+    if nChoices >= maxNChoices:
+        print("nChoices >= maxNChoices")
+        return
+    
+
     
     # get the angle of the port, see if the angle is rewarded, if so reward the broken port
     
@@ -455,25 +464,30 @@ def callbackIRBeam(data):
             pubCommand.publish(rewardCommand(messagePortNo)) # give reward to the broken port
             trialRewardPortList.append(messagePortNo) # add to the list of rewarded port within this trial
             lastRewardTime=time.time()
-            sleep(0.1)
-             #
-            pubCommand.publish(switchOffLightCommand(messagePortNo))
-            
-            
+
+            print("increasing nReward and nChoices by 1 on correct choice")
             nRewards= nRewards+1 
             nChoices= nChoices+1
     
-
+            sleep(0.1)
+            pubCommand.publish(switchOffLightCommand(messagePortNo))
+            
+            
             # if all ports have been depleated
             if len(trialRewardPortList) == len(config["rewarded_ports"]): #if len(trialRewardPortList) == len(config["rewarded_ports"]):
             	end_trial()
 
+            return # to make sure we don't fall in the next if statement
+
 
         if  portAngle[messagePortNo] not in rewardedAngles: # the animal poke a wrong port, end this trial there if messagePortNo not in config["rewarded_ports"]:
+            print("increasing nChoices by 1 on wrong choice")
             nChoices= nChoices+1
             end_trial()
+            return
             
-            
+    
+
 
 def callbackArenaInfo(data):
 	"""
@@ -630,7 +644,7 @@ if args.directory:
         sys.exit()
 
 master="a230-pc89"
-#arenaCameraHost="a230-pc005"
+arenaCameraHost="a230-pc005"
 
         
 msg=Header()
@@ -726,9 +740,14 @@ if args.transfer:
 '''
 
 if args.transfer:
-    copyDataFilesToDatabase(fileBase,mouseDir,sessionName,
-                            master,
-                            userName)
+    copyDataFilesToDatabase(fileBase = fileBase,
+                            mouseDir = mouseDir,
+                            sessionName = sessionName,
+                            master = master,
+                            arenaCameraHost = arenaCameraHost,
+                            userName = userName,
+                            arenaCamera = False)
 
+    
 sleep(3)
 rospy.signal_shutdown("task is over")

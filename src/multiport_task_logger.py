@@ -112,11 +112,13 @@ def callbackArenaInfo(data):
     
     
 def callbackMonitorControl(data):
-    
-    imageChange = data.data
-    print("visual cue rotation:", imageChange)
+
     stamp=rospy.get_rostime()
-    imageChange.replace(" ",":")
+    imageChange = data.data
+    
+    #print("visual cue rotation before correction:", imageChange)
+    imageChange = imageChange.replace(" ",":")
+    #print("visual cue rotation after correction:", imageChange)
     f.write("imageRotation %10d.%09d %s\n" % (stamp.secs,
                                             stamp.nsecs,
                                             imageChange))
