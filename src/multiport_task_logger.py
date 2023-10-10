@@ -116,6 +116,7 @@ def callbackMonitorControl(data):
     imageChange = data.data
     print("visual cue rotation:", imageChange)
     stamp=rospy.get_rostime()
+    imageChange.replace(" ",":")
     f.write("imageRotation %10d.%09d %s\n" % (stamp.secs,
                                             stamp.nsecs,
                                             imageChange))

@@ -34,9 +34,9 @@ nChoices=0 # number of choices in the current trial
 
 
 nPorts=4
-myCmd = {"allLightsOn": int('0000000111111111',2),
-        "allLightsOff": int('0000000011111111',2),
-        "allReward" :   int('0000001011111111',2)}
+myCmd = {"allLightsOn": int('0000000111111111',2), #511
+        "allLightsOff": int('0000000011111111',2), # 127
+        "allReward" :   int('0000001011111111',2)} # 767
         
 #rewardedport = 1 #np.randomranint(o,nports) #choose a random port to be rewarded
 
