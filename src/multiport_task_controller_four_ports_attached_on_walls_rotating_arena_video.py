@@ -281,7 +281,7 @@ def update_performance(n_rewards,n_choices):
     
     global perfo
 
-    print("entering update_performance(): n_rewards:", n_rewards, " n_choices:",n_choices)
+    #print("entering update_performance(): n_rewards:", n_rewards, " n_choices:",n_choices)
     
     if n_rewards < 0 or n_rewards > 2:
         raise ValueError("n_rewards should range from 0 to 2 but was {}".format(n_rewards))
@@ -427,7 +427,7 @@ def callbackIRBeam(data):
     global nRewards
     global nChoices
 
-    print("entering callbackIRBeam()"," nChoices:",nChoices, " nRewards:",nRewards, " rewardedAngles:", rewardedAngles)
+    #print("entering callbackIRBeam()"," nChoices:",nChoices, " nRewards:",nRewards, " rewardedAngles:", rewardedAngles)
     
     
    
@@ -438,7 +438,7 @@ def callbackIRBeam(data):
     #print(message,messagePortNo)
     
 
-    print("in callbackIRBeam(), messagePortNo:", messagePortNo, " nChoices:",nChoices, " nRewards:",nRewards, " rewardedAngles:", rewardedAngles)
+    #print("in callbackIRBeam(), messagePortNo:", messagePortNo, " nChoices:",nChoices, " nRewards:",nRewards, " rewardedAngles:", rewardedAngles)
     # if a port is not in use, don't do anything
     if messagePortNo >= nPorts:
         return
@@ -465,7 +465,7 @@ def callbackIRBeam(data):
             trialRewardPortList.append(messagePortNo) # add to the list of rewarded port within this trial
             lastRewardTime=time.time()
 
-            print("increasing nReward and nChoices by 1 on correct choice")
+     #       print("increasing nReward and nChoices by 1 on correct choice")
             nRewards= nRewards+1 
             nChoices= nChoices+1
     
@@ -481,7 +481,7 @@ def callbackIRBeam(data):
 
 
         if  portAngle[messagePortNo] not in rewardedAngles: # the animal poke a wrong port, end this trial there if messagePortNo not in config["rewarded_ports"]:
-            print("increasing nChoices by 1 on wrong choice")
+      #      print("increasing nChoices by 1 on wrong choice")
             nChoices= nChoices+1
             end_trial()
             return
